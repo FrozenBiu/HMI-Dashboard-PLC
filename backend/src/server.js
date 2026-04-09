@@ -3,6 +3,8 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const nodes7 = require("nodes7");
+const fs = require("fs"); // MỚI: Gọi thư viện quản lý File của Node.js
+const path = require("path");
 
 const app = express();
 app.use(cors());
@@ -14,6 +16,26 @@ const io = new Server(server, {
 const conn = new nodes7();
 
 console.log("✅ Đang khởi động kết nối tới PLC S7-1200 THẬT...");
+
+// --- MỚI: DATABASE CỤC BỘ BẰNG FILE JSON ---
+const DB_FILE = path.join(__dirname, "recipes.json");
+// Hàm đọc Database (Nếu file chưa có thì tạo file rỗng)
+const loadRecipes = () => {
+  try {
+    if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify({}));
+    return JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+  } catch (error) {
+    console.error("Lỗi đọc DB:", error);
+    return {};
+  }
+};
+
+// Hàm ghi xuống Database
+const saveRecipes = (data) => {
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+};
+
+let savedRecipesDB = loadRecipes(); // Tải DB vào bộ nhớ khi khởi động Server
 
 // 1. CẤU HÌNH IP PLC THẬT
 const PLC_CONFIG = {
@@ -145,6 +167,29 @@ conn.initiateConnection(PLC_CONFIG, (err) => {
 // 5. NHẬN LỆNH ĐIỀU KHIỂN TỪ WEB
 io.on("connection", (socket) => {
   console.log(`💻 Web Client connected: ${socket.id}`);
+
+  // MỚI: Ngay khi có người mới vào Web, lập tức gửi bộ Recipe trong DB cho họ
+  socket.emit("update_recipes", savedRecipesDB);
+
+  // --- MỚI: CÁC API QUẢN LÝ RECIPE TỪ WEB ---
+  // 1. Lưu Recipe mới vào DB
+  socket.on("save_recipe", (payload) => {
+    const { name, parameters } = payload;
+    savedRecipesDB[name] = parameters; // Cập nhật trên RAM
+    saveRecipes(savedRecipesDB); // Ghi đè xuống ổ cứng máy chủ
+
+    // Phát thanh bản cập nhật DB cho TẤT CẢ các thiết bị đang mở Web
+    io.emit("update_recipes", savedRecipesDB);
+    console.log(`💾 Đã lưu Recipe [${name}] vào Database cục bộ.`);
+  });
+
+  // 2. Xóa Recipe khỏi DB
+  socket.on("delete_recipe", (name) => {
+    delete savedRecipesDB[name];
+    saveRecipes(savedRecipesDB);
+    io.emit("update_recipes", savedRecipesDB); // Đồng bộ lại cho mọi người
+    console.log(`🗑️ Đã xóa Recipe [${name}] khỏi Database.`);
+  });
 
   // NHẬN LỆNH RESET_CMD TỪ WEB
   socket.on("write_plc", (payload) => {

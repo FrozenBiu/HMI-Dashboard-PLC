@@ -9,42 +9,83 @@ function App() {
     alarm1: false,
     alarm2: false,
     flagM: false,
-    parameters: null, // State lưu thông số máy
+    parameters: null,
   });
 
-  // State cục bộ dùng cho các ô Input khi người dùng đang gõ
   const [editParams, setEditParams] = useState({});
 
+  // STATE QUẢN LÝ RECIPE TỪ SERVER (Không dùng LocalStorage nữa)
+  const [savedRecipes, setSavedRecipes] = useState({});
+  const [newRecipeName, setNewRecipeName] = useState("");
+  const [selectedRecipe, setSelectedRecipe] = useState("");
+
   useEffect(() => {
+    // 1. Lắng nghe dữ liệu Real-time từ PLC
     socket.on("plc_data", (data) => {
       setPlcData(data);
-      // Chỉ đồng bộ dữ liệu vào form edit nếu người dùng chưa chỉnh sửa gì
       setEditParams((prev) =>
         Object.keys(prev).length === 0 ? data.parameters : prev,
       );
     });
-    return () => socket.off("plc_data");
+
+    // 2. Lắng nghe bản cập nhật Database Recipe từ Server Node.js
+    socket.on("update_recipes", (recipesFromServer) => {
+      setSavedRecipes(recipesFromServer);
+    });
+
+    return () => {
+      socket.off("plc_data");
+      socket.off("update_recipes");
+    };
   }, []);
 
+  // --- CÁC NÚT ĐIỀU KHIỂN XUỐNG PLC ---
   const handleReset = () =>
     socket.emit("write_plc", { tag: "RESET_CMD", value: true });
   const releaseReset = () =>
     socket.emit("write_plc", { tag: "RESET_CMD", value: false });
 
-  // Xử lý khi người dùng gõ vào ô Input
   const handleParamChange = (key, value) => {
     setEditParams((prev) => ({ ...prev, [key]: Number(value) }));
   };
 
-  // Nút gửi thông số xuống PLC
   const handleSyncToPLC = () => {
     socket.emit("write_parameters", editParams);
-    alert("Đã gửi thông số xuống máy!");
+    alert("✅ Đã đồng bộ thông số xuống PLC thành công!");
+  };
+
+  // --- CÁC HÀM XỬ LÝ RECIPE (Gọi API qua Socket) ---
+  const handleSaveRecipe = () => {
+    if (!newRecipeName.trim()) {
+      alert("⚠️ Vui lòng nhập tên Line/Máy để lưu!");
+      return;
+    }
+    // Gửi lệnh lên Server nhờ lưu giùm
+    socket.emit("save_recipe", { name: newRecipeName, parameters: editParams });
+    setNewRecipeName("");
+    setSelectedRecipe(newRecipeName);
+  };
+
+  const handleLoadRecipe = (name) => {
+    if (savedRecipes[name]) {
+      setEditParams(savedRecipes[name]);
+      setSelectedRecipe(name);
+    }
+  };
+
+  const handleDeleteRecipe = (name) => {
+    if (
+      window.confirm(
+        `Bạn có chắc chắn muốn xóa thông số của [${name}] không? Dữ liệu này sẽ mất trên toàn hệ thống!`,
+      )
+    ) {
+      // Gửi lệnh xóa lên Server
+      socket.emit("delete_recipe", name);
+      if (selectedRecipe === name) setSelectedRecipe("");
+    }
   };
 
   const isAnyAlarmActive = plcData.alarm1 || plcData.alarm2;
-
-  console.log(plcData.parameters);
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-300 font-sans pb-20 relative overflow-hidden selection:bg-cyan-500/30">
@@ -59,7 +100,7 @@ function App() {
             <div className="flex items-center gap-3 mb-1">
               <div className="h-[2px] w-8 bg-cyan-500"></div>
               <span className="text-cyan-500 font-mono text-xs tracking-[0.3em]">
-                HMI TERMINAL V2.4
+                HMI TERMINAL V2.5 (EDGE DB)
               </span>
             </div>
             <h1
@@ -126,34 +167,10 @@ function App() {
             </div>
 
             <div
-              className={`text-3xl font-black tracking-tight relative z-10 w-full flex items-center justify-between ${
-                plcData.alarm1
-                  ? "text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
-                  : "text-slate-600"
-              }`}
+              className={`text-3xl font-black tracking-tight relative z-10 w-full flex items-center justify-between ${plcData.alarm1 ? "text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" : "text-slate-600"}`}
             >
               <span>{plcData.alarm1 ? "CRITICAL ALARM" : "STANDBY"}</span>
-              {plcData.alarm1 && (
-                <svg
-                  className="w-8 h-8 animate-bounce"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  ></path>
-                </svg>
-              )}
             </div>
-            {plcData.alarm1 && (
-              <div className="mt-2 text-red-400/80 font-mono text-sm uppercase animate-pulse">
-                Action Required Immediately
-              </div>
-            )}
           </div>
 
           {/* Station 2 */}
@@ -184,34 +201,10 @@ function App() {
             </div>
 
             <div
-              className={`text-3xl font-black tracking-tight relative z-10 w-full flex items-center justify-between ${
-                plcData.alarm2
-                  ? "text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]"
-                  : "text-slate-600"
-              }`}
+              className={`text-3xl font-black tracking-tight relative z-10 w-full flex items-center justify-between ${plcData.alarm2 ? "text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" : "text-slate-600"}`}
             >
               <span>{plcData.alarm2 ? "WARNING FAULT" : "STANDBY"}</span>
-              {plcData.alarm2 && (
-                <svg
-                  className="w-8 h-8 animate-bounce"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  ></path>
-                </svg>
-              )}
             </div>
-            {plcData.alarm2 && (
-              <div className="mt-2 text-amber-400/80 font-mono text-sm uppercase animate-pulse">
-                Check Sensor Alignment
-              </div>
-            )}
           </div>
 
           {/* Acknowledge Flag (M) */}
@@ -220,17 +213,6 @@ function App() {
               <h2 className="text-xs font-mono tracking-[0.2em] uppercase text-slate-500">
                 Ack Flag <span className="opacity-50">(M50.1)</span>
               </h2>
-              <div className="flex gap-1">
-                <div
-                  className={`w-1 h-3 rounded-full ${plcData.flagM ? "bg-cyan-500 shadow-[0_0_8px_#06b6d4]" : "bg-slate-800"}`}
-                ></div>
-                <div
-                  className={`w-1 h-3 rounded-full ${plcData.flagM ? "bg-cyan-500 shadow-[0_0_8px_#06b6d4]" : "bg-slate-800"}`}
-                ></div>
-                <div
-                  className={`w-1 h-3 rounded-full ${plcData.flagM ? "bg-cyan-500 shadow-[0_0_8px_#06b6d4]" : "bg-slate-800"}`}
-                ></div>
-              </div>
             </div>
             <div className="flex items-end gap-4">
               <div
@@ -249,7 +231,6 @@ function App() {
 
         {/* REAL-TIME CONVEYOR VISUALIZATION */}
         <div className="mb-10 p-8 rounded-2xl bg-[#0a0d14] border border-slate-800/80 relative shadow-2xl overflow-hidden group">
-          {/* Subtle grid in background of panel */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none opacity-50"></div>
 
           <div className="flex justify-between items-center mb-10 relative z-10">
@@ -277,100 +258,58 @@ function App() {
           </div>
 
           <div className="relative w-full h-32 bg-[#050505] rounded-xl overflow-visible border border-slate-800 px-2 flex items-center shadow-inner z-10">
-            {/* Markers Container - positioned absolute relative to the panel */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-              {/* SENSOR */}
               <div className="absolute left-2 top-0 h-full flex flex-col items-center">
-                <div className="absolute -top-12 sm:-top-8 text-[9px] sm:text-[12px] font-mono text-cyan-500 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/30 whitespace-nowrap z-20">
+                <div className="absolute -top-8 text-[12px] font-mono text-cyan-500 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/30 whitespace-nowrap z-20">
                   SENSOR
                 </div>
                 <div className="h-full w-px bg-gradient-to-b from-cyan-500 to-transparent"></div>
               </div>
-
-              {/* ALARM 1 POS */}
               <div className="absolute left-[7.4%] top-0 h-full flex flex-col items-center">
-                <div className="absolute -top-6 sm:-top-8 text-[9px] sm:text-[12px] font-mono text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/30 whitespace-nowrap translate-x-1 sm:translate-x-0 z-20">
+                <div className="absolute -top-8 text-[12px] font-mono text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/30 whitespace-nowrap z-20">
                   ALARM 1
                 </div>
                 <div className="h-full w-px bg-gradient-to-b from-red-500/80 via-red-500/20 to-transparent border-r border-dashed border-red-500/50"></div>
               </div>
-
-              {/* ALARM 2 POS */}
               <div className="absolute left-[99.5%] top-0 h-full flex flex-col items-center">
-                <div className="absolute -top-8 -right-5 text-[9px] sm:text-[12px] font-mono text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 whitespace-nowrap z-20">
+                <div className="absolute -top-8 -right-5 text-[12px] font-mono text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 whitespace-nowrap z-20">
                   ALARM 2
                 </div>
                 <div className="h-full w-px bg-gradient-to-b from-amber-500/80 via-amber-500/20 to-transparent border-r border-dashed border-amber-500/50"></div>
               </div>
             </div>
 
-            {/* Conveyor Belt Background Line */}
             <div className="absolute left-0 right-0 h-1 bg-slate-800 top-1/2 transform -translate-y-1/2 shadow-[0_0_10px_rgba(0,0,0,0.5)]"></div>
 
-            {/* Tracking Array Render */}
-            <div className="flex w-full h-16 items-center justify-start gap-[1px] relative z-10 px-1">
-              {plcData.trackingData.map((isError, index) => {
-                if (isError) {
+            <div className="absolute top-0 left-0 w-full h-full px-1">
+              {plcData.trackingData &&
+                plcData.trackingData.map((isError, index) => {
+                  if (!isError) return null;
+                  const positionPercent = (index / 944) * 100;
                   return (
                     <div
                       key={index}
-                      className="w-2.5 h-14 bg-red-500 rounded-[1px] z-20 shadow-[0_0_12px_rgba(239,68,68,0.9)] relative"
+                      className="absolute top-1/2 -translate-y-1/2 w-2.5 h-14 bg-red-500 rounded-[1px] z-20 shadow-[0_0_12px_rgba(239,68,68,0.9)]"
+                      style={{ left: `${positionPercent}%` }}
+                      title={`Vị trí: ${index}`}
                     >
                       <div className="absolute inset-0 bg-white/30 w-full h-full mix-blend-overlay"></div>
                     </div>
                   );
-                }
-                return (
-                  <div
-                    key={index}
-                    className="flex-1 max-w-[2px] h-3 bg-cyan-900/40 rounded-[1px] transition-all hover:bg-cyan-700/50 hover:h-6"
-                  ></div>
-                );
-              })}
+                })}
             </div>
           </div>
         </div>
 
-        {/* MACHINE PARAMETERS & MASTER CONTROL ROW */}
+        {/* MACHINE PARAMETERS, RECIPE MANAGER & MASTER CONTROL ROW */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* MACHINE PARAMETERS */}
           <div className="xl:col-span-3 p-8 rounded-2xl bg-[#0a0d14] border border-slate-800/80 shadow-2xl relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/5 to-transparent pointer-events-none"></div>
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 relative z-10 gap-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-3 uppercase tracking-wide">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <svg
-                    className="w-5 h-5 text-blue-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                    ></path>
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    ></path>
-                  </svg>
-                </div>
-                Machine Parameters{" "}
-                <span className="text-slate-600 text-md font-mono normal-case tracking-normal">
-                  DB10
-                </span>
-              </h2>
-              <button
-                onClick={handleSyncToPLC}
-                className="group/btn relative px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-mono text-sm tracking-widest font-bold rounded overflow-hidden shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all"
-              >
-                <div className="absolute inset-0 w-0 bg-white/20 transition-all duration-300 ease-out group-hover/btn:w-full"></div>
-                <span className="relative flex items-center gap-2">
+            <div className="flex flex-col lg:flex-row gap-10 relative z-10">
+              {/* RECIPE MANAGER */}
+              <div className="lg:w-1/3 flex flex-col gap-5 border-b lg:border-b-0 lg:border-r border-slate-800/80 pb-6 lg:pb-0 lg:pr-8">
+                <h3 className="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-widest">
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -381,37 +320,179 @@ function App() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth="2"
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                      d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
                     ></path>
                   </svg>
-                  SYNC TO PLC
-                </span>
-              </button>
-            </div>
+                  Edge Database
+                </h3>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
-              {editParams &&
-                Object.keys(editParams).map((key) => (
-                  <div
-                    key={key}
-                    className="flex flex-col bg-[#050505] p-4 rounded-lg border border-slate-800/60 hover:border-blue-500/50 transition-colors focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/50 focus-within:shadow-[0_0_15px_rgba(59,130,246,0.15)] group/input"
+                <div className="flex flex-col gap-3 p-4 rounded-xl bg-[#050505] border border-slate-800/60 shadow-inner">
+                  <input
+                    type="text"
+                    placeholder="Tên Line (VD: Line Sữa Chua)"
+                    value={newRecipeName}
+                    onChange={(e) => setNewRecipeName(e.target.value)}
+                    className="bg-transparent text-sm text-white font-mono outline-none border-b border-slate-700 pb-2 focus:border-cyan-500 transition-colors placeholder:text-slate-600"
+                  />
+                  <button
+                    onClick={handleSaveRecipe}
+                    className="bg-cyan-600/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2"
                   >
-                    <label className="text-[14px] uppercase text-slate-500 font-mono mb-2 truncate group-focus-within/input:text-blue-400 transition-colors">
-                      {key}
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={editParams[key]}
-                      onChange={(e) => handleParamChange(key, e.target.value)}
-                      className="bg-transparent text-2xl text-slate-200 font-mono font-bold outline-none w-full transition-colors group-focus-within/input:text-white"
-                    />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                      ></path>
+                    </svg>
+                    LƯU VÀO MÁY CHỦ
+                  </button>
+                </div>
+
+                <div className="flex flex-col mt-2">
+                  <label className="text-[10px] text-slate-500 font-mono tracking-widest uppercase mb-3">
+                    Profiles Trên Server:
+                  </label>
+                  <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                    {Object.keys(savedRecipes).length === 0 ? (
+                      <span className="text-sm text-slate-600 italic">
+                        Server chưa có dữ liệu
+                      </span>
+                    ) : (
+                      Object.keys(savedRecipes).map((name) => (
+                        <div
+                          key={name}
+                          className={`flex justify-between items-center p-3 rounded-lg cursor-pointer transition-all border group/item
+                            ${
+                              selectedRecipe === name
+                                ? "bg-cyan-950/30 border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.1)]"
+                                : "bg-[#050505] border-slate-800/60 hover:border-slate-600"
+                            }`}
+                        >
+                          <span
+                            onClick={() => handleLoadRecipe(name)}
+                            className={`text-sm font-mono truncate flex-1 ${selectedRecipe === name ? "text-cyan-400 font-bold" : "text-slate-300 group-hover/item:text-white"}`}
+                          >
+                            {name}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRecipe(name);
+                            }}
+                            className="text-slate-600 hover:text-red-500 transition-colors px-2"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              ></path>
+                            </svg>
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))}
+                </div>
+              </div>
+
+              {/* MACHINE PARAMETERS */}
+              <div className="lg:w-2/3 flex flex-col">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-3 uppercase tracking-wide">
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                      <svg
+                        className="w-5 h-5 text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                        ></path>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        ></path>
+                      </svg>
+                    </div>
+                    Parameters
+                    {selectedRecipe && (
+                      <span className="text-cyan-400 font-mono text-sm tracking-normal ml-2">
+                        [{selectedRecipe}]
+                      </span>
+                    )}
+                  </h2>
+
+                  <button
+                    onClick={handleSyncToPLC}
+                    className="group/btn relative px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-mono text-sm tracking-widest font-bold rounded overflow-hidden shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all"
+                  >
+                    <div className="absolute inset-0 w-0 bg-white/20 transition-all duration-300 ease-out group-hover/btn:w-full"></div>
+                    <span className="relative flex items-center gap-2">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                        ></path>
+                      </svg>
+                      SYNC TO PLC
+                    </span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {editParams &&
+                    Object.keys(editParams).map((key) => (
+                      <div
+                        key={key}
+                        className="flex flex-col bg-[#050505] p-4 rounded-lg border border-slate-800/60 hover:border-blue-500/50 transition-colors focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/50 focus-within:shadow-[0_0_15px_rgba(59,130,246,0.15)] group/input"
+                      >
+                        <label className="text-[11px] uppercase text-slate-500 font-mono mb-2 truncate group-focus-within/input:text-blue-400 transition-colors tracking-wider">
+                          {key}
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={editParams[key]}
+                          onChange={(e) =>
+                            handleParamChange(key, e.target.value)
+                          }
+                          className="bg-transparent text-xl text-slate-200 font-mono font-bold outline-none w-full transition-colors group-focus-within/input:text-white"
+                        />
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* MASTER CONTROL */}
+          {/* MASTER CONTROL BUTTON */}
           <div className="xl:col-span-1 flex flex-col justify-stretch">
             <button
               onMouseDown={handleReset}
@@ -424,7 +505,6 @@ function App() {
                     : "bg-gradient-to-b from-slate-700 to-slate-900 border-slate-950 shadow-[0_10px_20px_rgba(0,0,0,0.4),inset_0_2px_5px_rgba(255,255,255,0.1)] hover:brightness-110"
                 }`}
             >
-              {/* Button Gloss Overlay */}
               <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-t-2xl"></div>
 
               <svg
@@ -454,12 +534,24 @@ function App() {
               <span
                 className={`text-[14px] font-mono mt-2 opacity-70 ${isAnyAlarmActive ? "text-red-200" : "text-slate-500"}`}
               >
-                DB25.DBX118.2
+                M50.2
               </span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* Tùy chỉnh thanh cuộn cho danh sách Profile */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #050505; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
+      `,
+        }}
+      />
     </div>
   );
 }
