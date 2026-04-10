@@ -2,6 +2,11 @@
   "name": "dashboardplc",
   "version": "1.0.0",
   "main": "index.js",
+  "pkg": {
+    "assets": [
+      "src/dist/**/*"
+    ]
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node ./src/server.js"
