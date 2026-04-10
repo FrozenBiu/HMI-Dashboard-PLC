@@ -47,24 +47,29 @@ const PLC_CONFIG = {
 
 // 2. BẢN ĐỒ VÙNG NHỚ
 const VARIABLES = {
+  // Kiểu Real dùng 'R', kiểu DInt dùng 'D', kiểu Byte thì dùng 'B'
   // Đọc 119 bytes (118 bytes mảng vị trí + 1 byte chứa Alarm1, Alarm2)
   TRACKING_BLOCK: "DB25,B0.119",
   RESET_CMD_WEB: "M202.1",
   FLAG_M: "M50.1", // cờ tín hiệu cho biết alarm1 đã được reset chưa để kích alarm2
 
   // --- THÊM MAP CHO BẢNG SETTINGS (Giả sử DB Data của em là DB10) ---
-  // Kiểu Real dùng 'R', kiểu DInt dùng 'D'
-  // --- GIẢI PHÁP: Gom toàn bộ DB10 thành 1 cục 32 Bytes để đọc ---
-  PARAMETERS_BLOCK: "DB10,B0.32",
+  PARAMETERS_BLOCK: "DB19,B0.32",
+  // --- CÁC BIẾN LẺ DÙNG ĐỂ GHI XUỐNG PLC ---
+  // Node.js cần biết offset của từng biến để chọc đúng vào DB19
+  PRODUCT_LENGTH: "DB19,R0",
+  DIAMETER_SENSOR: "DB19,R4",
+  ENCODER_PULSE: "DB19,R8",
+  DIAMETER: "DB19,R12",
+  FILTER_TRIGGER: "DB19,R16",
+  TIMER_REJECT: "DB19,D20",
+  ALARM1_TO_ALARM2_DISTANCE: "DB19,R24",
+  SENSOR_TO_ALARM1_DISTANCE: "DB19,R28",
 
-  PRODUCT_LENGTH: "DB10,R0",
-  DIAMETER_SENSOR: "DB10,R4",
-  ENCODER_PULSE: "DB10,R8",
-  DIAMETER: "DB10,R12",
-  FILTER_TRIGGER: "DB10,R16",
-  TIMER_REJECT: "DB10,D20",
-  ALARM1_TO_ALARM2_DISTANCE: "DB10,R24",
-  SENSOR_TO_ALARM1_DISTANCE: "DB10,R28",
+  // 3 Lệnh reset độc lập từ Web
+  WEB_CMD_RESET_ALARM: "M206.3",
+  WEB_CMD_RESET_PROG: "M206.4",
+  WEB_CMD_BYPASS: "M206.5",
 };
 
 // 3. HÀM GIẢI MÃ BUFFER THÀNH MẢNG 944 BIT
@@ -96,17 +101,6 @@ conn.initiateConnection(PLC_CONFIG, (err) => {
 
   conn.setTranslationCB((tag) => VARIABLES[tag]);
 
-  const parameterTags = [
-    "PRODUCT_LENGTH",
-    "DIAMETER_SENSOR",
-    "ENCODER_PULSE",
-    "DIAMETER",
-    "FILTER_TRIGGER",
-    "TIMER_REJECT",
-    "ALARM1_TO_ALARM2_DISTANCE",
-    "SENSOR_TO_ALARM1_DISTANCE",
-  ];
-
   conn.addItems([
     "TRACKING_BLOCK",
     "FLAG_M",
@@ -123,7 +117,7 @@ conn.initiateConnection(PLC_CONFIG, (err) => {
       }
 
       const rawBuffer = values.TRACKING_BLOCK;
-      const paramBuffer = values.PARAMETERS_BLOCK; // Lấy cục Buffer 32 bytes của DB10
+      const paramBuffer = values.PARAMETERS_BLOCK; // Lấy cục Buffer 32 bytes của DB19
 
       if (
         rawBuffer &&
@@ -191,33 +185,63 @@ io.on("connection", (socket) => {
     console.log(`🗑️ Đã xóa Recipe [${name}] khỏi Database.`);
   });
 
-  // NHẬN LỆNH RESET_CMD TỪ WEB
-  socket.on("write_plc", (payload) => {
-    if (payload.tag === "RESET_CMD") {
-      console.log(`Nhận lệnh Web: Ghi [${payload.value}] xuống DB25.DBX118.2`);
+  // NHẬN 3 LỆNH ĐIỀU KHIỂN RỜI RẠC
+  socket.on("write_plc_command", (commandTag) => {
+    console.log(`⚡ Nhận lệnh kích xung từ Web: [${commandTag}]`);
 
-      // FIX LỖI Ở ĐÂY: Truyền chuỗi Tag Name "RESET_CMD_WEB" thay vì truyền thẳng địa chỉ
-      conn.writeItems("RESET_CMD_WEB", payload.value, (err) => {
-        if (err) console.error("❌ Lỗi ghi PLC:", err);
-      });
-    }
-  });
-
-  // NHẬN LỆNH LƯU SETTINGS TỪ WEB
-  socket.on("write_parameters", (newParams) => {
-    console.log("📥 Nhận thông số mới từ Web:", newParams);
-
-    // Tách object thành mảng Tags và mảng Values để ghi 1 lần xuống PLC
-    const tags = Object.keys(newParams);
-    const values = Object.values(newParams);
-
-    conn.writeItems(tags, values, (err) => {
-      if (err) {
-        console.error("❌ Lỗi ghi Parameters xuống PLC:", err);
-      } else {
-        console.log("✅ Đã nạp thành công Recipe mới xuống PLC!");
-      }
+    // Ghi 1 lệnh TRUE duy nhất
+    conn.writeItems(commandTag, true, (err) => {
+      if (err) console.error(`❌ Lỗi ghi ${commandTag}:`, err);
+      else console.log(`✅ Đã kích hoạt [${commandTag}] thành công!`);
     });
+  });
+  // NHẬN LỆNH RESET_CMD TỪ WEB
+  // socket.on("write_plc", (payload) => {
+  //   if (payload.tag === "RESET_CMD") {
+  //     console.log(`Nhận lệnh Web: Ghi [${payload.value}] xuống DB25.DBX118.2`);
+
+  //     // FIX LỖI Ở ĐÂY: Truyền chuỗi Tag Name "RESET_CMD_WEB" thay vì truyền thẳng địa chỉ
+  //     conn.writeItems("RESET_CMD_WEB", payload.value, (err) => {
+  //       if (err) console.error("❌ Lỗi ghi PLC:", err);
+  //     });
+  //   }
+  // });
+
+  // NHẬN LỆNH LƯU SETTINGS TỪ WEB (TỐI ƯU HÓA: BLOCK WRITE)
+  socket.on("write_parameters", (newParams) => {
+    console.log("📥 Nhận thông số từ Web, đang đóng gói Buffer 32 bytes...");
+
+    try {
+      // 1. Tạo một hộp chứa (Buffer) trống có kích thước đúng 32 bytes
+      const buf = Buffer.alloc(32);
+
+      // 2. Nhét từng con số vào đúng vị trí Byte (Offset) của nó
+      // Lưu ý: writeFloatBE dùng cho số Real, writeInt32BE dùng cho DInt
+      buf.writeFloatBE(newParams.PRODUCT_LENGTH || 0, 0); // Offset 0
+      buf.writeFloatBE(newParams.DIAMETER_SENSOR || 0, 4); // Offset 4
+      buf.writeFloatBE(newParams.ENCODER_PULSE || 0, 8); // Offset 8
+      buf.writeFloatBE(newParams.DIAMETER || 0, 12); // Offset 12
+      buf.writeFloatBE(newParams.FILTER_TRIGGER || 0, 16); // Offset 16
+
+      buf.writeInt32BE(newParams.TIMER_REJECT || 0, 20); // Offset 20 (DINT)
+
+      buf.writeFloatBE(newParams.ALARM1_TO_ALARM2_DISTANCE || 0, 24); // Offset 24
+      buf.writeFloatBE(newParams.SENSOR_TO_ALARM1_DISTANCE || 0, 28); // Offset 28
+
+      // 3. Ép kiểu Buffer thành mảng Byte thuần (Array) để thư viện nodes7 dễ tiêu hóa nhất
+      const byteArray = Array.from(buf);
+
+      // 4. Ghi 1 cú duy nhất thẳng vào "PARAMETERS_BLOCK" (DB19,B0.32)
+      conn.writeItems("PARAMETERS_BLOCK", byteArray, (err) => {
+        if (err) {
+          console.error("❌ Lỗi ghi Parameters xuống PLC:", err);
+        } else {
+          console.log("✅ Đã nạp thành công Recipe nguyên khối xuống DB19!");
+        }
+      });
+    } catch (error) {
+      console.error("❌ Lỗi trong quá trình đóng gói Buffer:", error);
+    }
   });
 });
 

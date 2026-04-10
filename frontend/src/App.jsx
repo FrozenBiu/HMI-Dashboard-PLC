@@ -40,10 +40,10 @@ function App() {
   }, []);
 
   // --- CÁC NÚT ĐIỀU KHIỂN XUỐNG PLC ---
-  const handleReset = () =>
-    socket.emit("write_plc", { tag: "RESET_CMD", value: true });
-  const releaseReset = () =>
-    socket.emit("write_plc", { tag: "RESET_CMD", value: false });
+  // const handleReset = () =>
+  //   socket.emit("write_plc", { tag: "RESET_CMD", value: true });
+  // const releaseReset = () =>
+  //   socket.emit("write_plc", { tag: "RESET_CMD", value: false });
 
   const handleParamChange = (key, value) => {
     setEditParams((prev) => ({ ...prev, [key]: Number(value) }));
@@ -492,23 +492,57 @@ function App() {
             </div>
           </div>
 
-          {/* MASTER CONTROL BUTTON */}
-          <div className="xl:col-span-1 flex flex-col justify-stretch">
+          {/* MASTER CONTROL PANEL (3 CHỨC NĂNG) */}
+          <div className="xl:col-span-1 flex flex-col gap-4">
+            {/* Nút 1: Reset Alarm (An toàn) */}
             <button
-              onMouseDown={handleReset}
-              onMouseUp={releaseReset}
-              onMouseLeave={releaseReset}
-              className={`relative h-full min-h-[160px] rounded-2xl flex flex-col items-center justify-center p-6 transition-all duration-150 transform active:scale-95 active:translate-y-1 overflow-hidden group border-b-4
+              onClick={() =>
+                socket.emit("write_plc_command", "WEB_CMD_RESET_ALARM")
+              }
+              className={`relative h-[80px] rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 group border-b-4
                 ${
                   isAnyAlarmActive
-                    ? "bg-gradient-to-b from-red-600 to-red-800 border-red-950 shadow-[0_10px_30px_rgba(220,38,38,0.4),inset_0_2px_10px_rgba(255,255,255,0.3)] hover:brightness-110"
-                    : "bg-gradient-to-b from-slate-700 to-slate-900 border-slate-950 shadow-[0_10px_20px_rgba(0,0,0,0.4),inset_0_2px_5px_rgba(255,255,255,0.1)] hover:brightness-110"
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 border-blue-900 shadow-[0_5px_15px_rgba(6,182,212,0.4)]"
+                    : "bg-gradient-to-r from-slate-700 to-slate-800 border-slate-900 hover:bg-slate-600"
                 }`}
             >
-              <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-t-2xl"></div>
-
               <svg
-                className={`w-12 h-12 mb-3 ${isAnyAlarmActive ? "text-red-100" : "text-slate-400"}`}
+                className={`w-6 h-6 ${isAnyAlarmActive ? "text-white" : "text-slate-400"}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+              <div className="flex flex-col items-start">
+                <span
+                  className={`font-black tracking-widest ${isAnyAlarmActive ? "text-white" : "text-slate-300"}`}
+                >
+                  RESET ALARM
+                </span>
+              </div>
+            </button>
+
+            {/* Nút 2: Bypass Mode (Cảnh báo cam) */}
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "BẬT CHẾ ĐỘ BYPASS? \nHệ thống sẽ bỏ qua mọi sản phẩm lỗi!",
+                  )
+                ) {
+                  socket.emit("write_plc_command", "WEB_CMD_BYPASS");
+                }
+              }}
+              className="relative h-[80px] rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 bg-gradient-to-r from-amber-700 to-orange-600 border-b-4 border-amber-950 hover:brightness-110 shadow-[0_5px_15px_rgba(245,158,11,0.2)]"
+            >
+              <svg
+                className="w-6 h-6 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -520,22 +554,44 @@ function App() {
                   d="M13 10V3L4 14h7v7l9-11h-7z"
                 ></path>
               </svg>
+              <div className="flex flex-col items-start">
+                <span className="font-black tracking-widest text-white">
+                  BYPASS MODE
+                </span>
+              </div>
+            </button>
 
-              <span
-                className={`text-xl font-black tracking-widest text-center ${isAnyAlarmActive ? "text-white" : "text-slate-300"}`}
-                style={{
-                  textShadow: isAnyAlarmActive
-                    ? "0 2px 4px rgba(0,0,0,0.5)"
-                    : "none",
-                }}
+            {/* Nút 3: Reset Program (Nguy hiểm - Đỏ) */}
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "CẢNH BÁO: KHOI ĐỘNG LẠI CHƯƠNG TRÌNH? \nMọi thông số đếm sẽ bị xóa!",
+                  )
+                ) {
+                  socket.emit("write_plc_command", "WEB_CMD_RESET_PROG");
+                }
+              }}
+              className="relative h-[80px] rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 bg-gradient-to-r from-red-800 to-red-950 border-b-4 border-black hover:brightness-110 shadow-[0_5px_15px_rgba(220,38,38,0.2)]"
+            >
+              <svg
+                className="w-6 h-6 text-red-200"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                RESET BUTTON
-              </span>
-              <span
-                className={`text-[14px] font-mono mt-2 opacity-70 ${isAnyAlarmActive ? "text-red-200" : "text-slate-500"}`}
-              >
-                M50.2
-              </span>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                ></path>
+              </svg>
+              <div className="flex flex-col items-start">
+                <span className="font-black tracking-widest text-red-100">
+                  RESET SYSTEM
+                </span>
+              </div>
             </button>
           </div>
         </div>
