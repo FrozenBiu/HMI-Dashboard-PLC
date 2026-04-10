@@ -91,7 +91,7 @@ function App() {
     <div className="min-h-screen bg-[#050505] text-slate-300 font-sans pb-20 relative overflow-hidden selection:bg-cyan-500/30">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
-      <div className="absolute top-0 left-0 w-full h-[500px] bg-cyan-900/10 blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-0 left-0 w-full h-125 bg-cyan-900/10 blur-[120px] pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto p-6 relative z-10">
         {/* HEADER */}
@@ -304,7 +304,7 @@ function App() {
         {/* MACHINE PARAMETERS, RECIPE MANAGER & MASTER CONTROL ROW */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           <div className="xl:col-span-3 p-8 rounded-2xl bg-[#0a0d14] border border-slate-800/80 shadow-2xl relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/5 to-transparent pointer-events-none"></div>
+            <div className="absolute inset-0 bg-linear-to-br from-blue-900/5 to-transparent pointer-events-none"></div>
 
             <div className="flex flex-col lg:flex-row gap-10 relative z-10">
               {/* RECIPE MANAGER */}
@@ -359,7 +359,7 @@ function App() {
                   <label className="text-[10px] text-slate-500 font-mono tracking-widest uppercase mb-3">
                     Profiles Trên Server:
                   </label>
-                  <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                     {Object.keys(savedRecipes).length === 0 ? (
                       <span className="text-sm text-slate-600 italic">
                         Server chưa có dữ liệu
@@ -502,8 +502,8 @@ function App() {
               className={`relative h-[80px] rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 group border-b-4
                 ${
                   isAnyAlarmActive
-                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 border-blue-900 shadow-[0_5px_15px_rgba(6,182,212,0.4)]"
-                    : "bg-gradient-to-r from-slate-700 to-slate-800 border-slate-900 hover:bg-slate-600"
+                    ? "bg-linear-to-r from-blue-600 to-cyan-600 border-blue-900 shadow-[0_5px_15px_rgba(6,182,212,0.4)]"
+                    : "bg-linear-to-r from-slate-700 to-slate-800 border-slate-900 hover:bg-slate-600"
                 }`}
             >
               <svg
@@ -539,7 +539,7 @@ function App() {
                   socket.emit("write_plc_command", "WEB_CMD_BYPASS");
                 }
               }}
-              className="relative h-[80px] rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 bg-gradient-to-r from-amber-700 to-orange-600 border-b-4 border-amber-950 hover:brightness-110 shadow-[0_5px_15px_rgba(245,158,11,0.2)]"
+              className="relative h-[80px] rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 bg-linear-to-r from-amber-700 to-orange-600 border-b-4 border-amber-950 hover:brightness-110 shadow-[0_5px_15px_rgba(245,158,11,0.2)]"
             >
               <svg
                 className="w-6 h-6 text-white"
@@ -572,7 +572,7 @@ function App() {
                   socket.emit("write_plc_command", "WEB_CMD_RESET_PROG");
                 }
               }}
-              className="relative h-[80px] rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 bg-gradient-to-r from-red-800 to-red-950 border-b-4 border-black hover:brightness-110 shadow-[0_5px_15px_rgba(220,38,38,0.2)]"
+              className="relative h-20 rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 bg-linear-to-r from-red-800 to-red-950 border-b-4 border-black hover:brightness-110 shadow-[0_5px_15px_rgba(220,38,38,0.2)]"
             >
               <svg
                 className="w-6 h-6 text-red-200"
