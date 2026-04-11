@@ -1,0 +1,6 @@
+{
+  "PLC_IP": "192.168.0.10",
+  "PLC_PORT": 102,
+  "PLC_RACK": 0,
+  "PLC_SLOT": 1
+}

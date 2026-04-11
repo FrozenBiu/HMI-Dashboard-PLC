@@ -4,8 +4,11 @@ import Header from "../components/Header";
 import AlarmPanels from "../components/AlarmPanels";
 import Conveyor from "../components/Conveyor";
 
-// const socket = io("http://localhost:3001");
-const socket = io();
+// Tự động bắt đúng đường dẫn:
+// - Nếu đang chạy "npm run dev" (Vite): Trỏ về Backend 3001
+// - Nếu đã đóng gói file .exe: Trỏ về chính nó ("/")
+const socketUrl = import.meta.env.DEV ? "http://localhost:3001" : "/";
+const socket = io(socketUrl);
 
 // --- TỪ ĐIỂN ĐƠN VỊ CHO CÁC THÔNG SỐ ---
 const PARAM_UNITS = {

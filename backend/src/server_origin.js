@@ -40,7 +40,7 @@ let savedRecipesDB = loadRecipes(); // Tải DB vào bộ nhớ khi khởi độ
 // 1. CẤU HÌNH IP PLC THẬT
 const PLC_CONFIG = {
   port: 102,
-  host: "192.168.1.3", // Đổi lại IP nếu con PLC thật của em khác dải này
+  host: "192.168.0.10", // Đổi lại IP nếu con PLC thật của em khác dải này
   rack: 0,
   slot: 1,
 };

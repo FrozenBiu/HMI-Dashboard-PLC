@@ -60,7 +60,7 @@ const CONFIG_FILE = path.join(process.cwd(), "config.json");
 const loadConfig = () => {
   // Cấu hình mặc định nếu mang xuống xưởng mà lỡ tay xóa mất file config
   const defaultConfig = {
-    PLC_IP: "192.168.1.3",
+    PLC_IP: "192.168.0.10",
     PLC_PORT: 102,
     PLC_RACK: 0,
     PLC_SLOT: 1,
@@ -170,17 +170,20 @@ conn.initiateConnection(PLC_CONFIG, (err) => {
       const rawBuffer = values.TRACKING_BLOCK;
       const paramBuffer = values.PARAMETERS_BLOCK; // Lấy cục Buffer 32 bytes của DB19
 
+      // Ép kiểu mảng Array thuần thành Node.js Buffer
       if (
         rawBuffer &&
         rawBuffer.length >= 124 &&
         paramBuffer &&
         paramBuffer.length >= 32
       ) {
+        const safeRawBuffer = Buffer.from(rawBuffer);
+
         // 1. Bóc mảng Tracking (Giữ nguyên)
         const trackingArray = parseS7BufferToBits(rawBuffer.slice(0, 118), 944);
         const alarm1 = (rawBuffer[118] & (1 << 0)) !== 0;
         const alarm2 = (rawBuffer[118] & (1 << 1)) !== 0;
-        const lineSpeed = rawBuffer.slice(120, 124);
+        const lineSpeed = safeRawBuffer.readFloatBE(120);
 
         // 2. FIX LỖI Ở ĐÂY: Ép kiểu mảng thuần thành Node.js Buffer
         const safeParamBuffer = Buffer.from(paramBuffer);
