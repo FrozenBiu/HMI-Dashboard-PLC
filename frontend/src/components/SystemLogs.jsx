@@ -214,7 +214,7 @@ const SystemLogs = React.memo(({ logs }) => {
       </div>
 
       <div className="mt-4 text-right">
-        <span className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">
+        <span className="text-[12px] text-slate-500 font-mono tracking-widest uppercase">
           Tổng số:{" "}
           <strong className="text-cyan-500">{filteredLogs.length}</strong> sự
           kiện
