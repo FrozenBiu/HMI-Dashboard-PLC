@@ -1,0 +1,13 @@
+// Bản đồ Vùng nhớ PLC
+const VARIABLES = {
+  TRACKING_BLOCK: "DB25,B0.125",
+  RESET_CMD_WEB: "M202.1",
+  FLAG_M: "M50.1",
+  PARAMETERS_BLOCK: "DB19,B0.36",
+
+  WEB_CMD_RESET_ALARM: "M206.3",
+  WEB_CMD_RESET_PROG: "M206.4",
+  WEB_CMD_BYPASS: "M206.5",
+};
+
+module.exports = VARIABLES;

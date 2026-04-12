@@ -1,5 +1,61 @@
 [
   {
+    "id": 1776002146613,
+    "date": "12/4/2026",
+    "time": "20:55:46",
+    "errorName": "The system is ready!",
+    "length": "-"
+  },
+  {
+    "id": 1776002103827,
+    "date": "12/4/2026",
+    "time": "20:55:03",
+    "errorName": "Reset system...!",
+    "length": "-"
+  },
+  {
+    "id": 1776002100546,
+    "date": "12/4/2026",
+    "time": "20:55:00",
+    "errorName": "Operator is bypass!",
+    "length": "-"
+  },
+  {
+    "id": 1776002088665,
+    "date": "12/4/2026",
+    "time": "20:54:48",
+    "errorName": "Reset system...!",
+    "length": "-"
+  },
+  {
+    "id": 1776001849640,
+    "date": "12/4/2026",
+    "time": "20:50:49",
+    "errorName": "Reset system...!",
+    "length": "-"
+  },
+  {
+    "id": 1776001849639,
+    "date": "12/4/2026",
+    "time": "20:50:49",
+    "errorName": "Reject Product",
+    "length": "125.0"
+  },
+  {
+    "id": 1776001845496,
+    "date": "12/4/2026",
+    "time": "20:50:45",
+    "errorName": "Reset system...!",
+    "length": "-"
+  },
+  {
+    "id": 1776001845482,
+    "date": "12/4/2026",
+    "time": "20:50:45",
+    "errorName": "Reject Product",
+    "length": "125.0"
+  },
+  {
     "id": 1775926059265,
     "date": "11/4/2026",
     "time": "23:47:39",
