@@ -34,7 +34,59 @@ app.get(/.*/, (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
+// ========================================================================================================================================================================
+// 1. QUẢN LÝ FILE LOG (Thay thế DataLog Siemens)
+// ========================================================================================================================================================================
+const LOG_FILE = path.join(process.cwd(), "system_logs.json");
+
+const loadLogs = () => {
+  try {
+    if (!fs.existsSync(LOG_FILE))
+      fs.writeFileSync(LOG_FILE, JSON.stringify([]));
+    return JSON.parse(fs.readFileSync(LOG_FILE, "utf8"));
+  } catch (error) {
+    return [];
+  }
+};
+
+let systemLogsDB = loadLogs();
+
+// Hàm tạo và lưu Log mới
+const writeSystemLog = (errorName, productLength = null) => {
+  const now = new Date();
+  const newLog = {
+    id: Date.now(),
+    date: now.toLocaleDateString("vi-VN"), // DD/MM/YYYY
+    time: now.toLocaleTimeString("vi-VN", { hour12: false }), // HH:MM:SS
+    errorName: errorName,
+    length: productLength ? Number(productLength).toFixed(1) : "-",
+  };
+
+  systemLogsDB.unshift(newLog); // Nhét log mới lên đầu mảng
+
+  // Giữ lại 1000 log gần nhất để không đầy ổ cứng (Tùy chỉnh theo nhu cầu 30 ngày)
+  if (systemLogsDB.length > 1000) systemLogsDB.pop();
+
+  fs.writeFileSync(LOG_FILE, JSON.stringify(systemLogsDB, null, 2));
+
+  io.emit("update_logs", systemLogsDB); // Bắn toàn bộ DB lên khi có sự kiện mới
+};
+
+// ========================================================================================================================================================================
+// 2. DETECTOR (BẮT SƯỜN LÊN TỪ PLC)
+// ========================================================================================================================================================================
+// Biến lưu trạng thái cũ để so sánh
+let prevStates = {
+  trigReject: false,
+  trigOverload: false,
+  resetPLC: false,
+  bypass: false,
+  firstScan: false,
+};
+
+// ========================================================================================================================================================================
 // --- DATABASE CỤC BỘ BẰNG FILE JSON ---
+// ========================================================================================================================================================================
 const DB_FILE = path.join(process.cwd(), "recipes.json");
 // Hàm đọc Database (Nếu file chưa có thì tạo file rỗng)
 const loadRecipes = () => {
@@ -99,7 +151,7 @@ console.log(`🔌 Đang kết nối tới PLC tại địa chỉ: ${PLC_CONFIG.h
 const VARIABLES = {
   // Kiểu Real dùng 'R', kiểu DInt dùng 'D', kiểu Byte thì dùng 'B'
   // Đọc 119 bytes (118 bytes mảng vị trí + 1 byte chứa Alarm1, Alarm2)
-  TRACKING_BLOCK: "DB25,B0.124",
+  TRACKING_BLOCK: "DB25,B0.125",
   RESET_CMD_WEB: "M202.1",
   FLAG_M: "M50.1", // cờ tín hiệu cho biết alarm1 đã được reset chưa để kích alarm2
 
@@ -121,6 +173,13 @@ const VARIABLES = {
   WEB_CMD_RESET_ALARM: "M206.3",
   WEB_CMD_RESET_PROG: "M206.4",
   WEB_CMD_BYPASS: "M206.5",
+
+  // Trạng thái để ghi lịch sử lỗi
+  // TRIG_REJECT: "M204.7",
+  // TRIG_OVERLOAD: "M207.0",
+  // RESET_SCL: "M207.1",
+  // HISTORY_BYPASS: "M203.1",
+  // FIRST_SCAN: "M1.0",
 };
 
 // 3. HÀM GIẢI MÃ BUFFER THÀNH MẢNG 944 BIT
@@ -167,13 +226,13 @@ conn.initiateConnection(PLC_CONFIG, (err) => {
         return;
       }
 
-      const rawBuffer = values.TRACKING_BLOCK;
+      const rawBuffer = values.TRACKING_BLOCK; //  Lấy cục Buffer 32 bytes của DB25
       const paramBuffer = values.PARAMETERS_BLOCK; // Lấy cục Buffer 32 bytes của DB19
 
       // Ép kiểu mảng Array thuần thành Node.js Buffer
       if (
         rawBuffer &&
-        rawBuffer.length >= 124 &&
+        rawBuffer.length >= 125 &&
         paramBuffer &&
         paramBuffer.length >= 32
       ) {
@@ -184,11 +243,15 @@ conn.initiateConnection(PLC_CONFIG, (err) => {
         const alarm1 = (rawBuffer[118] & (1 << 0)) !== 0;
         const alarm2 = (rawBuffer[118] & (1 << 1)) !== 0;
         const lineSpeed = safeRawBuffer.readFloatBE(120);
+        const trigReject = (rawBuffer[124] & (1 << 0)) !== 0;
+        const trigOverload = (rawBuffer[124] & (1 << 1)) !== 0;
+        const resetSCL = (rawBuffer[124] & (1 << 2)) !== 0;
+        const historyBypass = (rawBuffer[124] & (1 << 3)) !== 0;
+        const firstScan = (rawBuffer[124] & (1 << 4)) !== 0;
 
-        // 2. FIX LỖI Ở ĐÂY: Ép kiểu mảng thuần thành Node.js Buffer
+        // Ép kiểu mảng thuần thành Node.js Buffer
         const safeParamBuffer = Buffer.from(paramBuffer);
 
-        // 3. Bây giờ safeParamBuffer đã là Buffer xịn, gọi readFloatBE thoải mái!
         const parsedParams = {
           PRODUCT_LENGTH: safeParamBuffer.readFloatBE(0),
           DIAMETER_SENSOR: safeParamBuffer.readFloatBE(4),
@@ -210,6 +273,54 @@ conn.initiateConnection(PLC_CONFIG, (err) => {
           flagM: values.FLAG_M,
           parameters: parsedParams,
         });
+
+        // 5. LOGIC BẮT SƯỜN LÊN (RISING EDGE) ĐỂ GHI LOG
+        // RESET_SCL: "M202.7",
+        // HISTORY_BYPASS: "M203.1",
+        // Bắt lỗi Reject (Alarm 1)
+        if (trigReject && !prevStates.trigReject) {
+          writeSystemLog("Reject Product", parsedParams.DIAMETER_PRODUCT);
+        }
+        prevStates.trigReject = trigReject;
+
+        // Bắt lỗi Cảnh báo (Alarm 2)
+        if (trigOverload && !prevStates.trigOverload) {
+          writeSystemLog("The system is overload!", null);
+        }
+        prevStates.trigOverload = trigOverload;
+
+        // Bắt lỗi reset PLC
+        if (resetSCL && !prevStates.resetSCL) {
+          writeSystemLog("Reset system...!", null);
+        }
+        prevStates.resetSCL = resetSCL;
+
+        // Bắt lỗi bypass
+        if (historyBypass && !prevStates.historyBypass) {
+          writeSystemLog("Operator is bypass!", null);
+        }
+        prevStates.historyBypass = historyBypass;
+
+        // Bắt lỗi khởi động lại PLC
+        if (firstScan && !prevStates.firstScan) {
+          writeSystemLog("The system is ready!", null);
+        }
+        prevStates.firstScan = firstScan;
+
+        // (Nếu em có bắt bit Bypass hay Reset thì thêm IF tương tự vào đây)
+
+        // Phát sóng lên React (Thêm gửi kèm 10 log gần nhất)
+        io.emit("plc_data", {
+          trackingData: trackingArray,
+          alarm1: alarm1,
+          alarm2: alarm2,
+          resetSCL: resetSCL,
+          historyBypass: historyBypass,
+          firstScan: firstScan,
+          lineSpeed: lineSpeed,
+          flagM: values.FLAG_M,
+          parameters: parsedParams,
+        });
       }
     });
   }, 100);
@@ -218,6 +329,9 @@ conn.initiateConnection(PLC_CONFIG, (err) => {
 // 5. NHẬN LỆNH ĐIỀU KHIỂN TỪ WEB
 io.on("connection", (socket) => {
   console.log(`💻 Web Client connected: ${socket.id}`);
+
+  // Vừa vào Web là gửi ngay toàn bộ lịch sử Log
+  socket.emit("update_logs", systemLogsDB);
 
   // MỚI: Ngay khi có người mới vào Web, lập tức gửi bộ Recipe trong DB cho họ
   socket.emit("update_recipes", savedRecipesDB);
@@ -252,17 +366,6 @@ io.on("connection", (socket) => {
       else console.log(`✅ Đã kích hoạt [${commandTag}] thành công!`);
     });
   });
-  // NHẬN LỆNH RESET_CMD TỪ WEB
-  // socket.on("write_plc", (payload) => {
-  //   if (payload.tag === "RESET_CMD") {
-  //     console.log(`Nhận lệnh Web: Ghi [${payload.value}] xuống DB25.DBX118.2`);
-
-  //     // FIX LỖI Ở ĐÂY: Truyền chuỗi Tag Name "RESET_CMD_WEB" thay vì truyền thẳng địa chỉ
-  //     conn.writeItems("RESET_CMD_WEB", payload.value, (err) => {
-  //       if (err) console.error("❌ Lỗi ghi PLC:", err);
-  //     });
-  //   }
-  // });
 
   // NHẬN LỆNH LƯU SETTINGS TỪ WEB (TỐI ƯU HÓA: BLOCK WRITE)
   socket.on("write_parameters", (newParams) => {
