@@ -56,7 +56,7 @@ const initPLC = (PLC_CONFIG, io) => {
 
         if (
           rawBuffer &&
-          rawBuffer.length >= 125 &&
+          rawBuffer.length >= 130 &&
           paramBuffer &&
           paramBuffer.length >= 32
         ) {
@@ -75,6 +75,7 @@ const initPLC = (PLC_CONFIG, io) => {
           const resetSCL = (safeRawBuffer[124] & (1 << 2)) !== 0;
           const historyBypass = (safeRawBuffer[124] & (1 << 3)) !== 0;
           const firstScan = (safeRawBuffer[124] & (1 << 4)) !== 0;
+          const productFaultLength = safeRawBuffer.readFloatBE(126);
 
           const safeParamBuffer = Buffer.from(paramBuffer);
           const parsedParams = {
@@ -104,11 +105,7 @@ const initPLC = (PLC_CONFIG, io) => {
 
           // LOGIC BẮT SƯỜN LÊN ĐỂ GHI LOG (Truyền thêm 'io' để bắn data lên Web)
           if (trigReject && !prevStates.trigReject)
-            dbService.writeSystemLog(
-              "Reject Product",
-              parsedParams.DIAMETER_PRODUCT,
-              io,
-            );
+            dbService.writeSystemLog("Reject Product", productFaultLength, io);
           if (trigOverload && !prevStates.trigOverload)
             dbService.writeSystemLog("The system is overload!", null, io);
           if (resetSCL && !prevStates.resetSCL)
