@@ -92,7 +92,7 @@ function App() {
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           <div className="xl:col-span-3 flex flex-col gap-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-h-150">
+            <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 max-h-150">
               <RecipeManager
                 newRecipeName={newRecipeName}
                 selectedRecipe={selectedRecipe}
@@ -112,7 +112,7 @@ function App() {
               />
             </div>
 
-            <div className="w-full gap-6">
+            <div className="w-full gap-6 mt-120 md:mt-125 lg:mt-40 xl:mt-5">
               <SystemLogs logs={plcLogs} />
             </div>
           </div>

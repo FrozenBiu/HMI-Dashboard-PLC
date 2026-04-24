@@ -8,7 +8,7 @@ const RecipeManager = ({
   handleDeleteRecipe,
 }) => {
   return (
-    <div className="col-span-1 flex flex-col p-6 rounded-2xl bg-[#0a0d14] border border-slate-800/80 shadow-2xl relative">
+    <div className="col-span-3 sm:col-span-1 flex flex-col p-6 rounded-2xl bg-[#0a0d14] border border-slate-800/80 shadow-2xl relative">
       <h3 className="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-widest mb-6">
         <svg
           className="w-5 h-5"

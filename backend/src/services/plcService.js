@@ -6,11 +6,12 @@ const conn = new nodes7();
 
 // Biến lưu trạng thái cũ (Fix chuẩn tên biến theo logic của em)
 let prevStates = {
-  trigReject: false,
-  trigOverload: false,
+  // trigReject: false,
+  // trigOverload: false,
   resetSCL: false,
   historyBypass: false,
-  firstScan: false,
+  // firstScan: false,
+  eventCounter: 0,
 };
 
 const parseS7BufferToBits = (buffer, totalBits) => {
@@ -56,7 +57,7 @@ const initPLC = (PLC_CONFIG, io) => {
 
         if (
           rawBuffer &&
-          rawBuffer.length >= 130 &&
+          rawBuffer.length >= 134 &&
           paramBuffer &&
           paramBuffer.length >= 32
         ) {
@@ -70,12 +71,14 @@ const initPLC = (PLC_CONFIG, io) => {
           const alarm2 = (safeRawBuffer[118] & (1 << 1)) !== 0;
           const lineSpeed = safeRawBuffer.readFloatBE(120);
 
-          const trigReject = (safeRawBuffer[124] & (1 << 0)) !== 0;
-          const trigOverload = (safeRawBuffer[124] & (1 << 1)) !== 0;
+          // const trigReject = (safeRawBuffer[124] & (1 << 0)) !== 0;
+          // const trigOverload = (safeRawBuffer[124] & (1 << 1)) !== 0;
           const resetSCL = (safeRawBuffer[124] & (1 << 2)) !== 0;
           const historyBypass = (safeRawBuffer[124] & (1 << 3)) !== 0;
           const firstScan = (safeRawBuffer[124] & (1 << 4)) !== 0;
           const productFaultLength = safeRawBuffer.readFloatBE(126);
+          const errorCode = safeRawBuffer.readInt16BE(130);
+          const eventCounter = safeRawBuffer.readInt16BE(132);
 
           const safeParamBuffer = Buffer.from(paramBuffer);
           const parsedParams = {
@@ -104,23 +107,41 @@ const initPLC = (PLC_CONFIG, io) => {
           });
 
           // LOGIC BẮT SƯỜN LÊN ĐỂ GHI LOG (Truyền thêm 'io' để bắn data lên Web)
-          if (trigReject && !prevStates.trigReject)
-            dbService.writeSystemLog("Reject Product", productFaultLength, io);
-          if (trigOverload && !prevStates.trigOverload)
-            dbService.writeSystemLog("The system is overload!", null, io);
-          if (resetSCL && !prevStates.resetSCL)
-            dbService.writeSystemLog("Reset system...!", null, io);
-          if (historyBypass && !prevStates.historyBypass)
-            dbService.writeSystemLog("Operator is bypass!", null, io);
-          if (firstScan && !prevStates.firstScan)
-            dbService.writeSystemLog("The system is ready!", null, io);
+          // if (trigReject && !prevStates.trigReject)
+          //   dbService.writeSystemLog("Reject Product", productFaultLength, io);
+          // if (trigOverload && !prevStates.trigOverload)
+          //   dbService.writeSystemLog("The system is overload!", null, io);
+          // if (resetSCL && !prevStates.resetSCL)
+          //   dbService.writeSystemLog("Reset system...!", null, io);
+          // if (historyBypass && !prevStates.historyBypass)
+          //   dbService.writeSystemLog("Operator is bypass!", null, io);
+          // if (firstScan && !prevStates.firstScan)
+          //   dbService.writeSystemLog("The system is ready!", null, io);
+          if (eventCounter !== prevStates.eventCounter) {
+            if (errorCode === 0)
+              dbService.writeSystemLog("The system is ready!", null, io);
+            else if (errorCode === 1)
+              dbService.writeSystemLog(
+                "Reject Product",
+                productFaultLength,
+                io,
+              );
+            else if (errorCode === 2)
+              dbService.writeSystemLog("The system is overload!", null, io);
+            else if (errorCode === 3)
+              dbService.writeSystemLog("Operator is bypass!", null, io);
+            else if (errorCode === 4)
+              dbService.writeSystemLog("Reset system...!", null, io);
+
+            // Cập nhật lại trạng thái Counter
+            // prevStates.eventCounter = eventCounter;
+          }
 
           prevStates = {
-            trigReject,
-            trigOverload,
             resetSCL,
             historyBypass,
             firstScan,
+            eventCounter,
           };
         }
       });

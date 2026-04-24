@@ -6,7 +6,7 @@ const Parameters = ({
   PARAM_UNITS,
 }) => {
   return (
-    <div className="col-span-2 p-6 rounded-2xl bg-[#0a0d14] border border-slate-800/80 shadow-2xl relative">
+    <div className="col-span-3 sm:col-span-2 p-6 rounded-2xl bg-[#0a0d14] border border-slate-800/80 shadow-2xl relative">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <h2 className="text-xl font-bold text-white flex items-center gap-3 uppercase tracking-wide">
           <div className="p-2 bg-blue-500/10 rounded-lg">
