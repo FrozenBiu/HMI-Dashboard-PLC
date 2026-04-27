@@ -1,5 +1,194 @@
 [
   {
+    "id": 1777258949630,
+    "date": "27/4/2026",
+    "time": "10:02:29",
+    "errorName": "Reject Product",
+    "length": "86.5"
+  },
+  {
+    "id": 1777258579667,
+    "date": "27/4/2026",
+    "time": "09:56:19",
+    "errorName": "Reject Product",
+    "length": "222.4"
+  },
+  {
+    "id": 1777258578041,
+    "date": "27/4/2026",
+    "time": "09:56:18",
+    "errorName": "Reject Product",
+    "length": "156.0"
+  },
+  {
+    "id": 1777258575186,
+    "date": "27/4/2026",
+    "time": "09:56:15",
+    "errorName": "Reject Product",
+    "length": "189.4"
+  },
+  {
+    "id": 1777258573772,
+    "date": "27/4/2026",
+    "time": "09:56:13",
+    "errorName": "Reject Product",
+    "length": "294.8"
+  },
+  {
+    "id": 1777258567654,
+    "date": "27/4/2026",
+    "time": "09:56:07",
+    "errorName": "Reset system...!",
+    "length": "-"
+  },
+  {
+    "id": 1777258555339,
+    "date": "27/4/2026",
+    "time": "09:55:55",
+    "errorName": "The system is overload!",
+    "length": "-"
+  },
+  {
+    "id": 1777258531727,
+    "date": "27/4/2026",
+    "time": "09:55:31",
+    "errorName": "Reject Product",
+    "length": "78.7"
+  },
+  {
+    "id": 1777258531301,
+    "date": "27/4/2026",
+    "time": "09:55:31",
+    "errorName": "Reject Product",
+    "length": "84.6"
+  },
+  {
+    "id": 1777258530854,
+    "date": "27/4/2026",
+    "time": "09:55:30",
+    "errorName": "Reject Product",
+    "length": "76.5"
+  },
+  {
+    "id": 1777258530438,
+    "date": "27/4/2026",
+    "time": "09:55:30",
+    "errorName": "Reject Product",
+    "length": "80.7"
+  },
+  {
+    "id": 1777258529196,
+    "date": "27/4/2026",
+    "time": "09:55:29",
+    "errorName": "Reject Product",
+    "length": "88.7"
+  },
+  {
+    "id": 1777258528754,
+    "date": "27/4/2026",
+    "time": "09:55:28",
+    "errorName": "Reject Product",
+    "length": "107.0"
+  },
+  {
+    "id": 1777258528215,
+    "date": "27/4/2026",
+    "time": "09:55:28",
+    "errorName": "Reject Product",
+    "length": "76.3"
+  },
+  {
+    "id": 1777258526212,
+    "date": "27/4/2026",
+    "time": "09:55:26",
+    "errorName": "Reject Product",
+    "length": "78.5"
+  },
+  {
+    "id": 1777258525789,
+    "date": "27/4/2026",
+    "time": "09:55:25",
+    "errorName": "Reject Product",
+    "length": "83.0"
+  },
+  {
+    "id": 1777258525343,
+    "date": "27/4/2026",
+    "time": "09:55:25",
+    "errorName": "Reject Product",
+    "length": "90.5"
+  },
+  {
+    "id": 1777258524939,
+    "date": "27/4/2026",
+    "time": "09:55:24",
+    "errorName": "Reject Product",
+    "length": "93.2"
+  },
+  {
+    "id": 1777258524556,
+    "date": "27/4/2026",
+    "time": "09:55:24",
+    "errorName": "Reject Product",
+    "length": "89.1"
+  },
+  {
+    "id": 1777258523244,
+    "date": "27/4/2026",
+    "time": "09:55:23",
+    "errorName": "Reject Product",
+    "length": "112.8"
+  },
+  {
+    "id": 1777258522826,
+    "date": "27/4/2026",
+    "time": "09:55:22",
+    "errorName": "Reject Product",
+    "length": "85.0"
+  },
+  {
+    "id": 1777258521270,
+    "date": "27/4/2026",
+    "time": "09:55:21",
+    "errorName": "Reject Product",
+    "length": "98.5"
+  },
+  {
+    "id": 1777258518077,
+    "date": "27/4/2026",
+    "time": "09:55:18",
+    "errorName": "Reject Product",
+    "length": "118.9"
+  },
+  {
+    "id": 1777258517120,
+    "date": "27/4/2026",
+    "time": "09:55:17",
+    "errorName": "Reject Product",
+    "length": "110.9"
+  },
+  {
+    "id": 1777258516002,
+    "date": "27/4/2026",
+    "time": "09:55:16",
+    "errorName": "Reject Product",
+    "length": "133.1"
+  },
+  {
+    "id": 1777258513367,
+    "date": "27/4/2026",
+    "time": "09:55:13",
+    "errorName": "Reset system...!",
+    "length": "-"
+  },
+  {
+    "id": 1777258470331,
+    "date": "27/4/2026",
+    "time": "09:54:30",
+    "errorName": "Operator is bypass!",
+    "length": "-"
+  },
+  {
     "id": 1776998992456,
     "date": "24/4/2026",
     "time": "09:49:52",
